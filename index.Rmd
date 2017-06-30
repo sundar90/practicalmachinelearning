@@ -1,0 +1,99 @@
+---
+title: "Human Activity Prediction"
+author: "Sundararaman P"
+date: "June 29, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(caret)
+```
+
+## Preface
+
+This Assignment is about analysing the Human Activity data recorded with the help of activity monitoring devices like fitbit. Different variables are measured using using accelerometers fitted on belt, forearm and dumbell of 6 participants. This data has been recorded and consolidated by the group http://groupware.les.inf.puc-rio.br/har. Using this data we are trying to predict the type of Activity performed using the recored measurements.The following sections explain you the steps performed to develop the Prediction Model
+
+## Data Loading and Variable Selection
+
+The data was loaded from the URL provided in the assignment question using the read.csv() functions as shown below.
+
+```{r }
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile = "pml-training.csv")
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile = "pml-testing.csv")
+training <- read.csv("pml-training.csv")
+testing <- read.csv("pml-testing.csv")
+```
+
+To get an idea about the dataset checked the dimesnsions of the dataset.
+
+```{r}
+dim(training)
+```
+The data appeared to be huge with more variables and large number of observations.
+
+### Selection of Variables for Analysis
+
+The selection of required variables was a difficult task as the dataset had 160 charecteristics recorded for a single observation. In order to make the variable selection process easy perfomed some study on the activity and the data. From the study and after a careful observation of the variables a decision was made to consider only those variables which has the recorded measurements in the 3 dimensions. Human Activity Prediction usually involves capturing the movements of human beings and based on the measurements made by the subject in x,y and z direction we determine what kind of activity he has perfomed. To keep the model simple a decision was made to pick the variables correspinding to the measurements on 3 axes for the accelerometers fitted on belt, forearm and dumbell. The decsion was made with a backout plan to re-work on variable selection based on the model performance.
+
+Below steps were performed to filter the x,y,z measurements alone from the training dataset.
+
+```{r}
+training_sub <- training[,grep("_[xyz]$",names(training))]
+training_sub$classe <- training$classe
+names(training_sub)
+```
+
+"training_sub" is the new datset which consists of x,y and z measurements from recording devices and the outcome classe which we want to predict.
+
+### Cross Validation
+
+To avoid overfitting Cross Validation was performed on the dataset "training_sub". K fold cross validation was used here. returnTrain= FALSE was used to produce small sample sizes without replacement.
+
+```{r}
+flds <- createFolds(y=training_sub$classe,k=10,list=TRUE,returnTrain = FALSE)
+sapply(flds,length)
+```
+
+The average length of sample reduced to 1962. 
+
+## Model Selection
+
+Since there is no possibility of a straight linear relationship in our case we proceeded with the Prediction by Trees Method. Random forests Model was found to be suitable for our data due to various reasons like (1). There was a large number of predictor variables and RF method will consider different variables at different nodes and hence it  picks the best out of them. (2). RF includes bootstrapping hence it constructs differenttrees for different bootstrap samples and picks the best of them.
+
+The model was fit using the RF method on the first fold of training data.
+
+```{r,include=FALSE}
+ fit <- train(classe~.,data = training_sub[flds[[1]],],method="rf")
+```
+
+We used the model to predict the outcome on other folds of data.
+Using fold 2
+
+```{r}
+pred2 <- predict(fit,training_sub[flds[[2]],-37])
+confusionMatrix(pred2,training_sub[flds[[2]],37])$overall
+```
+
+From the confusion Matrix output we observed that the Model fits pretty well with new data delivering an accuracy of 90 percent and higher values of Sensitivity and Specificity(above 95 percent). Using the ame model we predicted for other data folds and they all delivered an accuracy of 90 percent or model making the model a good precitor of human activity detection.( Please refer Appendix for details of different prediction tests performed)
+
+## Conclusion
+
+The Human Activity Prediction Model was sucessfully build from measurements on 3 axes for the accelerometers fitted on belt, forearm and dumbell. The method used was Random Forests Regression Tree Method and it yeilded an accuracy of 90 percent.
+
+## Appendix
+
+Prediction results performed on Fold 3 of training_sub dataset.
+
+```{r}
+pred3 <- predict(fit,training_sub[flds[[3]],-37])
+confusionMatrix(pred3,training_sub[flds[[3]],37])$overall
+```
+Prediction results performed on Fold 7 of training_sub dataset.
+
+```{r}
+pred7 <- predict(fit,training_sub[flds[[7]],-37])
+confusionMatrix(pred7,training_sub[flds[[7]],37])$overall
+```
+
+
